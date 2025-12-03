@@ -4,10 +4,10 @@
       push:
         branches:
           - main # Trigger on pushes to the main branch
-    env:
-      # Define the repository and image name once
-      IMAGE_NAME: fastapi-app
-      DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+    # env:
+    #   # Define the repository and image name once
+    #   IMAGE_NAME: fastapi-app
+    #   DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
       
     jobs:
       build-and-push:
@@ -25,12 +25,12 @@
           - name: Build Docker image
             run: |
                # The image is built but not yet tagged with the final repo name
-               docker build -t ${{ env.IMAGE_NAME }}:build .
+               docker build -t fastapi-app:build
 
           - name: Test Docker image
             run: |
               # 1. Run the container in detached mode (-d) on a temporary port
-              docker run -d -p 8000:8000 --name test-app ${{ env.IMAGE_NAME }}:build
+              docker run -d -p 8000:8000 --name test-app fastapi-app:build
 
               # 2. Wait for the application to start (give it a few seconds)
               echo "Waiting for app to start..."
@@ -56,11 +56,11 @@
               TAG_SHA="${{ env.DOCKERHUB_REPO }}:$SHORT_SHA"
 
               # Tag the built image with the full repository name and tags
-              docker tag ${{ env.IMAGE_NAME }}:build $TAG_LATEST
-              docker tag ${{ env.IMAGE_NAME }}:build $TAG_SHA
+              docker tag fastapi-app:build zhicheng135/fastapi-app:latest
+              docker tag fastapi-app:build zhicheng135/fastapi-app:${{ SHORT_SHA }}
               
               # Output the tags for the next step
-              echo "::set-output name=tags::$TAG_LATEST $TAG_SHA"
+              echo "::set-output name=tags::zhicheng135/fastapi-app:latest zhicheng135/fastapi-app:${{ SHORT_SHA }}"
           
           - name: Push Docker image
             run: |
