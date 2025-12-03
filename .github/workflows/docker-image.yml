@@ -21,12 +21,12 @@
           - name: Build Docker image
             run: |
                # The image is built but not yet tagged with the final repo name
-               docker build -t fastapi-app:build
+               docker build -t fastapi-app .
 
           - name: Test Docker image
             run: |
               # Run the container for testing (adjust the command for your app)
-              docker run -d --name fastapi-test -p 8000:8000 fastapi-app:build
+              docker run -d --name fastapi-test -p 8000:8000 fastapi-app
               
               # Wait for the container to start
               sleep 5
@@ -40,12 +40,14 @@
 
           - name: Tag Docker image
             run: |
-              IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app
-              docker tag fastapi-app:build $IMAGE_NAME:latest
+              DOCKERHUB_USER=${{ secrets.DOCKERHUB_USERNAME }}
+              REPO_NAME="fastapi-app"
+              docker tag fastapi-app:build $DOCKERHUB_USER/$REPO_NAME:latest
 
           - name: Push Docker image
             run: |
-              IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app
-              docker push $IMAGE_NAME:latest
+              DOCKERHUB_USER=${{ secrets.DOCKERHUB_USERNAME }}
+              REPO_NAME="fastapi-app"
+              docker push $DOCKERHUB_USER/$REPO_NAME:latest
 
           
