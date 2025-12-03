@@ -42,12 +42,12 @@
             run: |
               DOCKERHUB_USER=${{ secrets.DOCKERHUB_USERNAME }}
               REPO_NAME="fastapi-app"
-              docker tag fastapi-app:build $DOCKERHUB_USER/$REPO_NAME:latest
+              docker tag fastapi-app ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
 
           - name: Push Docker image
             run: |
               DOCKERHUB_USER=${{ secrets.DOCKERHUB_USERNAME }}
               REPO_NAME="fastapi-app"
-              docker push $DOCKERHUB_USER/$REPO_NAME:latest
+              docker push ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
 
           
