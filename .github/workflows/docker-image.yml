@@ -29,42 +29,27 @@
 
           - name: Test Docker image
             run: |
-              # 1. Run the container in detached mode (-d) on a temporary port
-              docker run -d -p 8000:8000 --name test-app fastapi-app:build
+              # Run the container for testing (adjust the command for your app)
+              docker run -d --name fastapi-test -p 8000:8000 fastapi-app:build
+              
+              # Wait for the container to start
+              sleep 5
 
-              # 2. Wait for the application to start (give it a few seconds)
-              echo "Waiting for app to start..."
-              sleep 10
+              # Simple health check (replace with real tests or curl endpoints)
+              curl -f http://localhost:8000/docs || (echo "Container test failed" && exit 1)
 
-              # 3. Use curl to check a health endpoint (modify / to your actual health check endpoint)
-              # The --fail flag ensures the step fails if the status code is >= 400
-              echo "Running health check..."
-              curl --fail http://localhost:8000 || (echo "Health check failed!" && exit 1)
-
-              # 4. Clean up the container
-              docker stop test-app && docker rm test-app
-              echo "Test complete and container cleaned up."
+              # Clean up
+              docker stop fastapi-test
+              docker rm fastapi-test
 
           - name: Tag Docker image
-            id: tag_image
             run: |
-              # Get the short commit SHA to use as the unique tag
-              SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)
+              IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app
+              docker tag fastapi-app:build $IMAGE_NAME:latest
 
-              # Define the full tags
-              TAG_LATEST="${{ env.DOCKERHUB_REPO }}:latest"
-              TAG_SHA="${{ env.DOCKERHUB_REPO }}:$SHORT_SHA"
-
-              # Tag the built image with the full repository name and tags
-              docker tag fastapi-app:build zhicheng135/fastapi-app:latest
-              docker tag fastapi-app:build zhicheng135/fastapi-app:${{ SHORT_SHA }}
-              
-              # Output the tags for the next step
-              echo "::set-output name=tags::zhicheng135/fastapi-app:latest zhicheng135/fastapi-app:${{ SHORT_SHA }}"
-          
           - name: Push Docker image
             run: |
-              # Loop through the tags generated in the previous step and push them
-              for tag in ${{ steps.tag_image.outputs.tags }}; do
-                docker push $tag
-              done
+              IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app
+              docker push $IMAGE_NAME:latest
+
+          
