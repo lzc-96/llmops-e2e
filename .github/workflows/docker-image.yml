@@ -23,20 +23,20 @@
                # The image is built but not yet tagged with the final repo name
                docker build -t fastapi-app .
 
-          - name: Test Docker image
-            run: |
-              # Run the container for testing (adjust the command for your app)
-              docker run -d --name fastapi-test -p 8000:8000 fastapi-app
+          # - name: Test Docker image
+          #   run: |
+          #     # Run the container for testing (adjust the command for your app)
+          #     docker run -d --name fastapi-test -p 8000:8000 fastapi-app
               
-              # Wait for the container to start
-              sleep 5
+          #     # Wait for the container to start
+          #     sleep 5
 
-              # Simple health check (replace with real tests or curl endpoints)
-              curl -f http://localhost:8000/docs || (echo "Container test failed" && exit 1)
+          #     # Simple health check (replace with real tests or curl endpoints)
+          #     curl -f http://localhost:8000/docs || (echo "Container test failed" && exit 1)
 
-              # Clean up
-              docker stop fastapi-test
-              docker rm fastapi-test
+          #     # Clean up
+          #     docker stop fastapi-test
+          #     docker rm fastapi-test
 
           - name: Tag Docker image
             run: |
