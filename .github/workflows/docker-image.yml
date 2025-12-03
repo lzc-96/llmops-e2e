@@ -4,11 +4,7 @@
       push:
         branches:
           - main # Trigger on pushes to the main branch
-    # env:
-    #   # Define the repository and image name once
-    #   IMAGE_NAME: fastapi-app
-    #   DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
-      
+    
     jobs:
       build-and-push:
         runs-on: ubuntu-latest
