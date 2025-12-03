@@ -4,7 +4,11 @@
       push:
         branches:
           - main # Trigger on pushes to the main branch
-
+    env:
+  # Define the repository and image name once
+      IMAGE_NAME: fastapi-app
+      DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+      
     jobs:
       build-and-push:
         runs-on: ubuntu-latest
@@ -19,14 +23,48 @@
               password: ${{ secrets.DOCKERHUB_TOKEN }}
 
           - name: Build Docker image
-            uses: docker/build-push-action@v5
-            with:
-              context: .
-              push: false # Set to true to push to registry
-              tags: |
-                ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
-                ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:${{ github.sha }}
-
-          - name: Run Docker container
             run: |
-              docker run -p 8000:8000 fastapi-app
+               # The image is built but not yet tagged with the final repo name
+               docker build -t ${{ env.IMAGE_NAME }}:build .
+
+          - name: Test Docker image
+            run: |
+              # 1. Run the container in detached mode (-d) on a temporary port
+              docker run -d -p 8000:8000 --name test-app ${{ env.IMAGE_NAME }}:build
+
+              # 2. Wait for the application to start (give it a few seconds)
+              echo "Waiting for app to start..."
+              sleep 10
+
+              # 3. Use curl to check a health endpoint (modify / to your actual health check endpoint)
+              # The --fail flag ensures the step fails if the status code is >= 400
+              echo "Running health check..."
+              curl --fail http://localhost:8000 || (echo "Health check failed!" && exit 1)
+
+              # 4. Clean up the container
+              docker stop test-app && docker rm test-app
+              echo "Test complete and container cleaned up."
+
+          - name: Tag Docker image
+            id: tag_image
+            run: |
+              # Get the short commit SHA to use as the unique tag
+              SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)
+
+              # Define the full tags
+              TAG_LATEST="${{ env.DOCKERHUB_REPO }}:latest"
+              TAG_SHA="${{ env.DOCKERHUB_REPO }}:$SHORT_SHA"
+
+              # Tag the built image with the full repository name and tags
+              docker tag ${{ env.IMAGE_NAME }}:build $TAG_LATEST
+              docker tag ${{ env.IMAGE_NAME }}:build $TAG_SHA
+              
+              # Output the tags for the next step
+              echo "::set-output name=tags::$TAG_LATEST $TAG_SHA"
+          
+          - name: Push Docker image
+            run: |
+              # Loop through the tags generated in the previous step and push them
+              for tag in ${{ steps.tag_image.outputs.tags }}; do
+                docker push $tag
+              done
