@@ -1,5 +1,5 @@
 # Use the official Python image from the Docker Hub
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 # Set the working directory in the container
 WORKDIR /app
@@ -7,8 +7,9 @@ WORKDIR /app
 # Copy only the requirements file to leverage Docker cache
 COPY requirements.txt .
 
-# Install the dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Commented out because dependencies will be installed inside the first step of CI/CD pipeline instead
+# So dependencies won't always have be re-installed on every "docker build" call
+# RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code to the working directory
 COPY . .
