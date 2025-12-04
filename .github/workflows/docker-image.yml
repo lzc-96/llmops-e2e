@@ -21,9 +21,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.10-slim'
   
-      # 🔵 Minimal Fix: Clean disk before pip installs
+      # Clean disk before installing dependencies
       - name: Free Disk Space
         run: |
           sudo rm -rf /var/lib/apt/lists/*
@@ -37,6 +37,7 @@ jobs:
         run: |
           pip install --no-cache-dir -r requirements.txt
           pip install --no-cache-dir deepeval
+          pip install --upgrade pip
   
       - name: Run DeepEval Evaluation
         env:
