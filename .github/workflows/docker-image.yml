@@ -142,7 +142,7 @@ jobs:
   kube_score:
     name: Validate Kubernetes Manifests
     runs-on: ubuntu-latest
-    needs: docker_push
+    needs: docker_prep
 
     steps:
       - name: Checkout Code
