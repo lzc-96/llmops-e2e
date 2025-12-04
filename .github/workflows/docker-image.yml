@@ -36,14 +36,20 @@ jobs:
 
 
   ###########################################################################
-  # 2. Build Docker Image & Export as Artifact
+  # 2. Build Docker Image
   ###########################################################################
   docker_build:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     needs: deepeval
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Clean Docker Disk
+        run: |
+          docker system prune -af --volumes || true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -52,35 +58,26 @@ jobs:
         run: |
           docker build -t fastapi-app:latest .
 
-      - name: Export Docker Image (save)
-        run: |
-          docker save fastapi-app:latest -o fastapi-app.tar
-
-      - name: Upload Image Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: fastapi-app
-          path: fastapi-app.tar
-
 
   ###########################################################################
   # 3. Test Docker Image
   ###########################################################################
   docker_test:
+    name: Test Docker Image
     runs-on: ubuntu-latest
     needs: docker_build
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Download Docker Image Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: fastapi-app
+      - name: Clean Docker Disk
+        run: |
+          docker system prune -af --volumes || true
 
       - name: Load Docker Image
         run: |
-          docker load -i fastapi-app.tar
+          docker build -t fastapi-app:latest .
 
       - name: Run Container Tests
         run: |
@@ -94,18 +91,21 @@ jobs:
   # 4. Trivy Vulnerability Scan
   ###########################################################################
   trivy_scan:
+    name: Trivy Vulnerability Scanner
     runs-on: ubuntu-latest
     needs: docker_test
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: fastapi-app
+      - name: Clean Docker Disk
+        run: |
+          docker system prune -af --volumes || true
 
-      - name: Load Docker Image
-        run: docker load -i fastapi-app.tar
+      - name: Build Docker Image
+        run: |
+          docker build -t fastapi-app:latest .
 
       - name: Run Trivy Scan
         uses: aquasecurity/trivy-action@0.20.0
@@ -120,18 +120,17 @@ jobs:
   # 5. Tag & Push Image to Docker Hub
   ###########################################################################
   docker_push:
+    name: Tag & Push Docker Image
     runs-on: ubuntu-latest
     needs: trivy_scan
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: fastapi-app
-
-      - name: Load Docker Image
-        run: docker load -i fastapi-app.tar
+      - name: Clean Docker Disk
+        run: |
+          docker system prune -af --volumes || true
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -139,9 +138,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Tag & Push Docker Image
+      - name: Build Docker Image
+        run: docker build -t fastapi-app:latest .
+
+      - name: Tag Docker Image
         run: |
           docker tag fastapi-app:latest ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
+
+      - name: Push Docker Image
+        run: |
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
 
 
@@ -149,11 +154,13 @@ jobs:
   # 6. Validate Kubernetes Manifests with kube-score
   ###########################################################################
   kube_score:
+    name: Validate Kubernetes Manifests with kube-score
     runs-on: ubuntu-latest
     needs: docker_push
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Install kube-score
         run: |
@@ -171,11 +178,13 @@ jobs:
   # 7. Deploy to Kubernetes (Self-Hosted Cluster)
   ###########################################################################
   k8s_deploy:
+    name: Deploy to Kubernetes (Self-Hosted Cluster)
     runs-on: ubuntu-latest
     needs: kube_score
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
