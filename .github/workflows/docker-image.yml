@@ -76,7 +76,16 @@ jobs:
                -d '{"question": "What is Hugging Face?", "context": "Hugging Face provides NLP libraries"}' \
                || (docker logs test-app && exit 1)
           docker stop test-app
-          docker rm test-app 
+          docker rm test-app
+
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get clean
+          sudo apt-get autoremove -y
+          rm -rf ~/.cache/pip
+          rm -rf ~/.cache/huggingface
+          df -h
 
       - name: Run Trivy Scan
         uses: aquasecurity/trivy-action@0.20.0
