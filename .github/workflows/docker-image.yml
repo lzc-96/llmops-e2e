@@ -29,6 +29,8 @@ jobs:
           pip install deepeval
 
       - name: Run DeepEval Evaluation
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           deepeval test run test_evaluation.py  # Adjust path if needed
 
