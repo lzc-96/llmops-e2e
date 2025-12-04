@@ -13,21 +13,31 @@ jobs:
   deepeval:
     name: Run DeepEval Evaluation
     runs-on: ubuntu-latest
-
+  
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
+  
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
+  
+      # 🔵 Minimal Fix: Clean disk before pip installs
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get clean
+          sudo apt-get autoremove -y
+          rm -rf ~/.cache/pip
+          rm -rf ~/.cache/huggingface
+          df -h
+  
       - name: Install Project Dependencies
         run: |
-          pip install -r requirements.txt
-          pip install deepeval
-
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir deepeval
+  
       - name: Run DeepEval Evaluation
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
