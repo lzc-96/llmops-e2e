@@ -47,9 +47,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Clean Docker Disk
-        run: |
-          docker system prune -af --volumes || true
+      # - name: Clean Docker Disk
+      #   run: |
+      #     docker system prune -af --volumes || true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -71,9 +71,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Clean Docker Disk
-        run: |
-          docker system prune -af --volumes || true
+      # - name: Clean Docker Disk
+      #   run: |
+      #     docker system prune -af --volumes || true
 
       - name: Load Docker Image
         run: |
@@ -99,9 +99,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Clean Docker Disk
-        run: |
-          docker system prune -af --volumes || true
+      # - name: Clean Docker Disk
+      #   run: |
+      #     docker system prune -af --volumes || true
 
       - name: Build Docker Image
         run: |
@@ -128,9 +128,9 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Clean Docker Disk
-        run: |
-          docker system prune -af --volumes || true
+      # - name: Clean Docker Disk
+      #   run: |
+      #     docker system prune -af --volumes || true
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
