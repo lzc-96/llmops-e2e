@@ -47,7 +47,7 @@ jobs:
   # 2. Build and Test Docker Image + Trivy Vulnerability Scan + Login, Tag and Push Docker Image
   ###############################################################################################
   docker_prep:
-    name: Build Docker Image
+    name: Prepare Docker Image
     runs-on: ubuntu-latest
     needs: deepeval
 
@@ -81,6 +81,7 @@ jobs:
       - name: Run Trivy Scan
         uses: aquasecurity/trivy-action@0.20.0
         with:
+          scanners: vuln
           image-ref: "fastapi-app:latest"
           format: "table"
           exit-code: "1"
