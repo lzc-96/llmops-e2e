@@ -60,7 +60,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t fastapi-app:latest .
+          docker build -t fastapi-app .
 
   ###########################################################################
   # 3. Test Docker Image (health + /chat)
@@ -76,7 +76,7 @@ jobs:
 
       - name: Run Container Tests
         run: |
-          docker run -p 8000:8000 fastapi-app:latest
+          docker run -p 8000:8000 fastapi-app
           sleep 10
           curl -f http://localhost:8000/health || (docker logs test-app && exit 1)
           curl -X POST http://localhost:8000/chat \
