@@ -21,7 +21,7 @@ def test_question_answering():
     # Define the test case for DeepEval
     test_case = LLMTestCase(
         input=question,  # The question as input
-        expected_output=expected_answer # The expected output from the model
+        expected_output=expected_answer, # The expected output from the model
         actual_output=actual_answer,  # The actual output from the model
         retrieval_context=[context]  # The context provided to the model
     )
