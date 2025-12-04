@@ -76,7 +76,7 @@ jobs:
 
       - name: Run Container Tests
         run: |
-          docker run -d --name test-app -p 8000:8000 fastapi-app:latest
+          docker run -p 8000:8000 fastapi-app:latest
           sleep 10
           curl -f http://localhost:8000/health || (docker logs test-app && exit 1)
           curl -X POST http://localhost:8000/chat \
