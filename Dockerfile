@@ -7,9 +7,8 @@ WORKDIR /app
 # Copy only the requirements file to leverage Docker cache
 COPY requirements.txt .
 
-# Commented out because dependencies will be installed inside the first step of CI/CD pipeline instead
-# So dependencies won't always have be re-installed on every "docker build" call
-# RUN pip install --no-cache-dir -r requirements.txt
+# Install the dependencies within the Docker container
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code to the working directory
 COPY . .
