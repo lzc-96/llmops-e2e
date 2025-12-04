@@ -22,6 +22,15 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get clean
+          sudo apt-get autoremove -y
+          rm -rf ~/.cache/pip
+          rm -rf ~/.cache/huggingface
+          df -h
+
       - name: Install Project Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -35,7 +44,7 @@ jobs:
           deepeval test run test_evaluation.py
 
   ###########################################################################
-  # 2. Build Docker Image (pre-cache HuggingFace model)
+  # 2. Build Docker Image (local build, pre-cache optional)
   ###########################################################################
   docker_build:
     name: Build Docker Image
@@ -49,9 +58,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker Image with model pre-cache
+      - name: Build Docker Image
         run: |
-          docker build -t fastapi-app:latest --build-arg CACHE_HF_MODEL=1 .
+          docker build -t fastapi-app:latest .
 
   ###########################################################################
   # 3. Test Docker Image (health + /chat)
@@ -69,14 +78,13 @@ jobs:
         run: |
           docker run -d --name test-app -p 8000:8000 fastapi-app:latest
           sleep 10
-          # Health check
           curl -f http://localhost:8000/health || (docker logs test-app && exit 1)
-          # Minimal functional /chat test
           curl -X POST http://localhost:8000/chat \
                -H "Content-Type: application/json" \
                -d '{"question": "What is Hugging Face?", "context": "Hugging Face provides NLP libraries"}' \
                || (docker logs test-app && exit 1)
           docker stop test-app
+          docker rm test-app
 
   ###########################################################################
   # 4. Trivy Vulnerability Scan
@@ -99,7 +107,7 @@ jobs:
           ignore-unfixed: true
 
   ###########################################################################
-  # 5. Tag & Push Image to Docker Hub
+  # 5. Tag & Push Docker Image to Docker Hub
   ###########################################################################
   docker_push:
     name: Tag & Push Docker Image
@@ -165,6 +173,7 @@ jobs:
 
       - name: Update Deployment Image
         run: |
+          # Use double quotes to expand secret
           sed -i "s|image: .*|image: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest|" deployment.yaml
 
       - name: Apply Kubernetes Manifests
