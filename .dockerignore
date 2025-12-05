@@ -1,0 +1,27 @@
+.git/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+
+# Python venv
+venv/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+
+# OS junk
+.DS_Store
+
+# Big folders you don’t want in Docker
+data/
+models/
+outputs/
+logs/
