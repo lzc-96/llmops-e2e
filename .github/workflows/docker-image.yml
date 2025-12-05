@@ -44,10 +44,10 @@ jobs:
           deepeval test run test_evaluation.py
 
   ###############################################################################################
-  # 2. Build and Test Docker Image + Trivy Vulnerability Scan + Login, Tag and Push Docker Image
+  # 2. Build, Test, Tag and Push Docker Image (to Docker Hub Repo)
   ###############################################################################################
-  docker_prep:
-    name: Prepare Docker Image
+  docker_build_test_tag_push:
+    name: Build, Test, Tag and Push Docker Image
     runs-on: ubuntu-latest
     needs: deepeval
 
@@ -55,12 +55,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v3
-
-      - name: Clean Docker Disk
-        run: |
-          docker system prune -af --volumes || true
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker Image
         run: |
@@ -78,42 +77,6 @@ jobs:
           docker stop test-app
           docker rm test-app
 
-      - name: Free Disk Space
-        run: |
-          sudo rm -rf /var/lib/apt/lists/*
-          sudo apt-get clean
-          sudo apt-get autoremove -y
-          rm -rf ~/.cache/pip
-          rm -rf ~/.cache/huggingface
-          df -h
-
-      # - name: Run Trivy Scan
-      #   uses: aquasecurity/trivy-action@0.20.0
-      #   with:
-      #     scanners: vuln
-      #     image-ref: "fastapi-app:latest"
-      #     format: "table"
-      #     exit-code: "1"
-      #     ignore-unfixed: true
-
-      # - name: Install Trivy
-      #   run: |
-      #     wget https://github.com/aquasecurity/trivy/releases/download/v0.29.2/trivy_0.29.2_Linux-64bit.tar.gz
-      #     tar zxvf trivy_0.29.2_Linux-64bit.tar.gz
-      #     sudo mv trivy /usr/local/bin/trivy
-
-      # - name: Run Trivy scan
-      #   run: trivy image --exit-code 1 --security-checks vuln --severity HIGH,CRITICAL fastapi-app:latest 
-        
-      # - name: Run Trivy scan for misconfigurations
-      #   run: trivy config .
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Tag & Push Docker Image
         run: |
           docker tag fastapi-app:latest ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
@@ -122,100 +85,252 @@ jobs:
   # ###########################################################################
   # # 3. Trivy Vulnerability Scan
   # ###########################################################################
-  # trivy_scan:
-  #   name: Trivy Vulnerability Scanner
-  #   runs-on: ubuntu-latest
-  #   needs: docker_build_test
+  trivy_scan:
+    name: Trivy Vulnerability Scanner
+    runs-on: ubuntu-latest
+    needs: docker_build_test_tag_push
 
-  #   steps:
-  #     - name: Checkout Code
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  #     - name: Run Trivy Scan
-  #       uses: aquasecurity/trivy-action@0.20.0
-  #       with:
-  #         image-ref: "fastapi-app:latest"
-  #         format: "table"
-  #         exit-code: "1"
-  #         ignore-unfixed: true
+      # Log in to Docker Hub 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-  ###########################################################################
-  # 3. Tag & Push Docker Image to Docker Hub
-  ###########################################################################
-  # docker_push:
-  #   name: Tag & Push Docker Image
-  #   runs-on: ubuntu-latest
-  #   needs: docker_prep
-
-  #   steps:
-  #     - name: Checkout Code
-  #       uses: actions/checkout@v4
-
-  #     - name: Log in to Docker Hub
-  #       uses: docker/login-action@v3
-  #       with:
-  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
-  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-  #     - name: Tag & Push Docker Image
-  #       run: |
-  #         docker tag fastapi-app:latest ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
-  #         docker push ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
+      # Trivy Vulnerability scan done directly on remote Docker Hub image (pushed previously)
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: zhicheng135/fastapi-app:latest
+          scan-type: image
+          format: table
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          vuln-type: os,library
+          scanners: vuln
+          timeout: 600s
 
   ###########################################################################
   # 3. Validate Kubernetes Manifests with kube-score
   ###########################################################################
-  kube_score:
-    name: Validate Kubernetes Manifests
-    runs-on: ubuntu-latest
-    needs: docker_prep
+  # kube_score:
+  #   name: Validate Kubernetes Manifests
+  #   runs-on: ubuntu-latest
+  #   needs: trivy_scan
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v4
 
-      - name: Install kube-score
-        run: |
-          curl -L https://github.com/zegl/kube-score/releases/download/v1.17.0/kube-score_1.17.0_linux_amd64.tar.gz \
-            -o kube-score.tar.gz
-          tar -xzf kube-score.tar.gz
-          chmod +x kube-score
+  #     - name: Install kube-score
+  #       run: |
+  #         curl -L https://github.com/zegl/kube-score/releases/download/v1.17.0/kube-score_1.17.0_linux_amd64.tar.gz \
+  #           -o kube-score.tar.gz
+  #         tar -xzf kube-score.tar.gz
+  #         chmod +x kube-score
 
-      - name: Run kube-score
-        run: kube-score score deployment.yaml service.yaml
-        continue-on-error: true
+  #     - name: Run kube-score
+  #       run: kube-score score deployment.yaml service.yaml
+  #       continue-on-error: true
 
 
   ###########################################################################
   # 4. Deploy to Kubernetes (Self-Hosted K8s Cluster)
   ###########################################################################
-  k8s_deploy:
-    name: Deploy to Kubernetes
-    runs-on: ubuntu-latest
-    needs: kube_score
+  # k8s_deploy:
+  #   name: Deploy to Kubernetes
+  #   runs-on: ubuntu-latest
+  #   needs: kube_score
 
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v4
+
+  #     - name: Set up kubectl
+  #       uses: azure/setup-kubectl@v3
+
+  #     - name: Configure kubeconfig
+  #       run: |
+  #         mkdir -p ~/.kube
+  #         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+
+  #     - name: Update Deployment Image
+  #       run: |
+  #         # Use double quotes to expand secret
+  #         sed -i "s|image: .*|image: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest|" deployment.yaml
+
+  #     - name: Apply Kubernetes Manifests
+  #       run: |
+  #         kubectl apply -f deployment.yaml
+  #         kubectl apply -f service.yaml
+
+  #     - name: Verify Deployment Rollout
+  #       run: |
+  #         kubectl rollout status deployment/fastapi-app-deployment --timeout=120s
+
+  ###########################################################################
+  # 4. Deploy to Kubernetes (Self-Hosted K8s Cluster)
+  ###########################################################################
+  deploy_test_k8s:
+    name: Deploy and Test (Kubernetes)
+    runs-on: ubuntu-latest
+    needs: trivy_scan
+  
     steps:
-      - name: Checkout Code
+      # 1. Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
+      # 2. Install kind
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.25.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      # 3. Start kind cluster
+      - name: Start kind cluster
+        run: kind create cluster --name fastapi-app-kind-cluster
+      
+      # 4. Export kubeconbfig from kind
+      - name: Export kubeconfig from kind
+        run: |
+          mkdir -p $HOME/.kube
+          kind get kubeconfig --name fastapi-app-kind-cluster > $HOME/.kube/config
+
+
+      # 5. Install kubectl
+      - name: Setup kubectl
         uses: azure/setup-kubectl@v3
+        with:
+          version: latest
 
-      - name: Configure kubeconfig
+      # 6. Wait for node to be ready
+      - name: Wait for node to be ready
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          echo "Waiting for control-plane node to be Ready..."
+          kubectl wait --for=condition=Ready node/github-ci-control-plane --timeout=240s
 
-      - name: Update Deployment Image
+      # 7. Load Docker image into kind
+      - name: Load Docker image into kind
         run: |
-          # Use double quotes to expand secret
-          sed -i "s|image: .*|image: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest|" deployment.yaml
+          docker pull zhicheng135/fastapi-app:latest
+          kind load docker-image zhicheng135/fastapi-app:latest --name fastapi-app-kind-cluster
+          echo "Verifying image is in kind node..."
+          for i in $(seq 1 10); do
+            if docker exec fastapi-app-kind-cluster-control-plane crictl images | grep -q zhicheng135/fastapi-app; then
+              echo "Image is now available in kind node."
+              break
+            else
+              echo "Waiting for image to load..."
+              sleep 2
+            fi
+          done
 
-      - name: Apply Kubernetes Manifests
+      # 8. Deploy app
+      - name: Deploy app
         run: |
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
 
-      - name: Verify Deployment Rollout
+      # 9. Wait for pod to be scheduled
+      - name: Wait for pod to start
         run: |
-          kubectl rollout status deployment/fastapi-app-deployment --timeout=120s
+          echo "Waiting for pod to start..."
+          for i in {1..60}; do
+            POD_STATUS=$(kubectl get pod -l app=gpt-hf-pod -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "Pending")
+            echo "Pod status: $POD_STATUS"
+            if [[ "$POD_STATUS" == "Running" ]]; then
+              break
+            fi
+            sleep 5
+          done
+
+      # 10. Wait for pod readiness
+      - name: Wait for pod readiness
+        run: kubectl wait --for=condition=ready pod -l app=gpt-hf-pod --timeout=600s
+
+      # 11. Debug services and pods
+      - name: Show pods and services
+        run: |
+          echo "--- Pods ---"
+          kubectl get pods -l app=gpt-hf-pod -o wide
+          echo "--- Services ---"
+          kubectl get svc gpt-hf-service -o wide
+          echo "--- Describe Service ---"
+          kubectl describe svc gpt-hf-service || true
+          echo "--- Describe Pods ---"
+          kubectl describe pods -l app=gpt-hf-pod || true
+
+      # 12. Test API inside cluster (port-forward)
+      - name: Test API inside cluster (port-forward)
+        run: |
+          SERVICE_NAME=gpt-hf-service
+          SERVICE_PORT=8000
+
+          # Forward the service port in background
+          kubectl port-forward svc/$SERVICE_NAME $SERVICE_PORT:$SERVICE_PORT &
+          PF_PID=$!
+          echo "Port-forward PID: $PF_PID"
+
+          # Wait until port is listening
+          for i in {1..10}; do
+            if nc -z localhost $SERVICE_PORT; then
+              echo "Port $SERVICE_PORT is ready"
+              break
+            fi
+            echo "Waiting for port-forward to be ready..."
+            sleep 1
+          done
+
+          # Retry loop
+          for i in $(seq 1 60); do
+            RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/response.json http://localhost:$SERVICE_PORT/chat \
+              -X POST -H "Content-Type: application/json" \
+              -d '{"question":"What does Hugging Face provide?", "context":"Hugging Face is a technology company that provides open-source NLP libraries ..."}')
+
+            if [ "$RESPONSE" = "200" ]; then
+              echo "Service is responsive! Response:"
+              cat /tmp/response.json
+              break
+            else
+              echo "Waiting for /chat endpoint (attempt $i)... HTTP $RESPONSE"
+              sleep 5
+            fi
+          done
+
+          # Kill port-forward
+          kill $PF_PID  
+
+      # 13. Install Krew and kube-score
+      - name: Install Krew and kube-score
+        run: |
+          set -e
+          (
+            cd "$(mktemp -d)" &&
+            OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+            ARCH="$(uname -m | sed 's/x86_64/amd64/' | sed 's/arm64/arm64/')" &&
+            echo "Downloading Krew for $OS/$ARCH"
+            curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-${OS}_${ARCH}.tar.gz" &&
+            tar zxvf krew-${OS}_${ARCH}.tar.gz &&
+            KREW=./krew-"$OS"_"$ARCH" &&
+            "$KREW" install krew
+          )
+          export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+          kubectl krew install score || true
+          kubectl score version
+
+      # 14. Run kube-score
+      - name: Run kube-score
+        run: |
+          export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+          kubectl score score --output-format ci deployment.yaml || true
+
+      # 15. Delete kind cluster
+      - name: Delete kind cluster
+        if: always()
+        run: kind delete cluster --name fastapi-app-kind-cluster
