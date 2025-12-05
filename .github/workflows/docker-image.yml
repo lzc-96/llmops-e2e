@@ -103,7 +103,7 @@ jobs:
           sudo mv trivy /usr/local/bin/trivy
 
       - name: Run Trivy scan
-        run: trivy image --exit-code 0 --severity HIGH,CRITICAL fastapi-app:latest --security-checks vuln
+        run: trivy image --exit-code 1 --security-checks vuln --severity HIGH,CRITICAL fastapi-app:latest 
         
       - name: Run Trivy scan for misconfigurations
         run: trivy config .
