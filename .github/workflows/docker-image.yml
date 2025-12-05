@@ -215,7 +215,14 @@ jobs:
           echo "Waiting for control-plane node to be Ready..."
           kubectl wait --for=condition=Ready node/fastapi-app-kind-cluster-control-plane --timeout=240s
 
-      # 7. Load Docker image into kind
+      #7. Clean up Docker space before loading image into kind
+      - name: Clean up Docker space
+        run: |
+          echo "Cleaning up old Docker images and containers to free space..."
+          docker system prune -af
+          docker volume prune -f
+
+      # 8. Load Docker image into kind
       - name: Load Docker image into kind
         run: |
           docker pull zhicheng135/fastapi-app:latest
@@ -231,8 +238,8 @@ jobs:
             fi
           done
 
-      # 8. Deploy app
-      - name: Deploy app
+      # 9. Deploy app
+      - name: Deploy application to K8s
         run: |
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
@@ -255,7 +262,7 @@ jobs:
         run: kubectl wait --for=condition=ready pod -l app=gpt-hf-pod --timeout=600s
 
       # 11. Debug services and pods
-      - name: Show pods and services
+      - name: Display pods and services
         run: |
           echo "--- Pods ---"
           kubectl get pods -l app=gpt-hf-pod -o wide
