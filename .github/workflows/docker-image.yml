@@ -173,7 +173,7 @@ jobs:
   #         kubectl rollout status deployment/fastapi-app-deployment --timeout=120s
 
   ###########################################################################
-  # 4. Deploy to Kubernetes (Self-Hosted K8s Cluster)
+  # 4. Deploy and Test for Kubernetes (Kind)
   ###########################################################################
   deploy_test_k8s:
     name: Deploy and Test (Kubernetes)
@@ -202,7 +202,6 @@ jobs:
           mkdir -p $HOME/.kube
           kind get kubeconfig --name fastapi-app-kind-cluster > $HOME/.kube/config
 
-
       # 5. Install kubectl
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
@@ -215,36 +214,38 @@ jobs:
           echo "Waiting for control-plane node to be Ready..."
           kubectl wait --for=condition=Ready node/fastapi-app-kind-cluster-control-plane --timeout=240s
 
-      #7. Clean up Docker space before loading image into kind
-      - name: Clean up Docker space
-        run: |
-          echo "Cleaning up old Docker images and containers to free space..."
-          docker system prune -af
-          docker volume prune -f
-
-      # 8. Load Docker image into kind
-      - name: Load Docker image into kind
-        run: |
-          docker pull zhicheng135/fastapi-app:latest
-          kind load docker-image zhicheng135/fastapi-app:latest --name fastapi-app-kind-cluster
-          echo "Verifying image is in kind node..."
-          for i in $(seq 1 10); do
-            if docker exec fastapi-app-kind-cluster-control-plane crictl images | grep -q zhicheng135/fastapi-app; then
-              echo "Image is now available in kind node."
-              break
-            else
-              echo "Waiting for image to load..."
-              sleep 2
-            fi
-          done
-
-      # 9. Deploy app
+      # 7. Deploy app directly from Docker Hub (no kind load)
       - name: Deploy application to K8s
         run: |
+          # References the deployment.yaml image that is on Docker Hub:
           kubectl apply -f deployment.yaml
           kubectl apply -f service.yaml
 
-      # 9. Wait for pod to be scheduled
+
+      # # 8. Clean up Docker space before loading image into kind
+      # - name: Clean up Docker space
+      #   run: |
+      #     echo "Cleaning up old Docker images and containers to free space..."
+      #     docker system prune -af
+      #     docker volume prune -f
+
+      # 8. Load Docker image into kind
+      # - name: Load Docker image into kind
+      #   run: |
+      #     docker pull zhicheng135/fastapi-app:latest
+      #     kind load docker-image zhicheng135/fastapi-app:latest --name fastapi-app-kind-cluster
+      #     echo "Verifying image is in kind node..."
+      #     for i in $(seq 1 10); do
+      #       if docker exec fastapi-app-kind-cluster-control-plane crictl images | grep -q zhicheng135/fastapi-app; then
+      #         echo "Image is now available in kind node."
+      #         break
+      #       else
+      #         echo "Waiting for image to load..."
+      #         sleep 2
+      #       fi
+      #     done
+
+      # 8. Wait for pod to be scheduled
       - name: Wait for pod to start
         run: |
           echo "Waiting for pod to start..."
@@ -257,11 +258,11 @@ jobs:
             sleep 5
           done
 
-      # 10. Wait for pod readiness
+      # 9. Wait for pod readiness
       - name: Wait for pod readiness
         run: kubectl wait --for=condition=ready pod -l app=gpt-hf-pod --timeout=600s
 
-      # 11. Debug services and pods
+      # 10. Debug services and pods
       - name: Display pods and services
         run: |
           echo "--- Pods ---"
@@ -273,7 +274,7 @@ jobs:
           echo "--- Describe Pods ---"
           kubectl describe pods -l app=gpt-hf-pod || true
 
-      # 12. Test API inside cluster (port-forward)
+      # 11. Test API inside cluster (port-forward)
       - name: Test API inside cluster (port-forward)
         run: |
           SERVICE_NAME=gpt-hf-service
@@ -313,7 +314,7 @@ jobs:
           # Kill port-forward
           kill $PF_PID  
 
-      # 13. Install Krew and kube-score
+      # 12. Install Krew and kube-score
       - name: Install Krew and kube-score
         run: |
           set -e
@@ -331,13 +332,13 @@ jobs:
           kubectl krew install score || true
           kubectl score version
 
-      # 14. Run kube-score
+      # 13. Run kube-score
       - name: Run kube-score
         run: |
           export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
           kubectl score score --output-format ci deployment.yaml || true
 
-      # 15. Delete kind cluster
+      # 14. Delete kind cluster
       - name: Delete kind cluster
         if: always()
         run: kind delete cluster --name fastapi-app-kind-cluster
