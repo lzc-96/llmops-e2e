@@ -213,7 +213,7 @@ jobs:
       - name: Wait for node to be ready
         run: |
           echo "Waiting for control-plane node to be Ready..."
-          kubectl wait --for=condition=Ready node/github-ci-control-plane --timeout=240s
+          kubectl wait --for=condition=Ready node/fastapi-app-kind-cluster-control-plane --timeout=240s
 
       # 7. Load Docker image into kind
       - name: Load Docker image into kind
